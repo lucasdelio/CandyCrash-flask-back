@@ -18,6 +18,13 @@ GUEST_TOKEN_COOKIE_NAME = 'sessionToken-Guest'
 
 app = Flask(__name__)
 CORS(app)
+
+#generate a new key file
+key = Fernet.generate_key()
+file = open('key.key', 'wb')
+file.write(key) # The key is type bytes still
+file.close()
+
 file = open('key.key', 'rb')
 key = file.read() # The key will be type bytes
 ferne = Fernet(key)
