@@ -7,10 +7,12 @@ from flask_cors import CORS, cross_origin
 from cryptography.fernet import Fernet
 from apscheduler.schedulers.background import BackgroundScheduler
 import requests
+import base64
 import random
 
+SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
+#SIGNUP_INVITATION_URL = 'https://matchmusic.world/invitation/'
 GOOGLE_USER_INFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
-SIGNUP_INVITATION_URL = 'http://localhost:3000/signup/'
 JSON_HEADER = {'content-type':'application/json'}
 TTL_ = 24*60*60 #24 hs ttl for generated tokens
 SPARK_TOKEN_COOKIE_NAME = 'sessionToken-Spark'
@@ -20,10 +22,10 @@ app = Flask(__name__)
 CORS(app)
 
 #generate a new key file
-key = Fernet.generate_key()
-file = open('key.key', 'wb')
-file.write(key) # The key is type bytes still
-file.close()
+#key = Fernet.generate_key()
+#file = open('key.key', 'wb')
+#file.write(key) # The key is type bytes still
+#file.close()
 
 file = open('key.key', 'rb')
 key = file.read() # The key will be type bytes
@@ -47,13 +49,12 @@ scheduler = BackgroundScheduler()
 scheduler.add_job(func=deleteExpiredUsersTask, trigger="interval", seconds=60)
 scheduler.start()
 
-''' @app.route('/users')
+@app.route('/users')
 def personas():
     p = users_collection.find()
-    return json_util.dumps(p), 200, JSON_HEADER '''
-''' 
-#find a user
-@app.route('/user')
+    return json_util.dumps(p), 200, JSON_HEADER
+
+''' @app.route('/user') #find a user
 def findUser( ):
     u = users_collection.find_one( {'user': 'lucasdelio'} )
     if u:
@@ -102,8 +103,10 @@ def generateInvitation2():
         cfg = json.loads( request.data.decode('utf8')  ) 
     except:
         return 'Invalid json body',400 
-    encrypted = ferne.encrypt( request.data ).decode('utf8')
-    return SIGNUP_INVITATION_URL+ encrypted
+    invitationToken = ferne.encrypt( b'nothing' ).decode('utf8')
+    cfg['invitation-token'] = invitationToken
+    invitationBase64 = base64.b64encode( bytes(json.dumps(cfg) , 'utf8')).decode('utf8')
+    return SIGNUP_INVITATION_URL+ invitationBase64
 
 def isValidToken(token):
     try:
@@ -149,12 +152,10 @@ def loginGuest():
         return 'user not found', 401
     if not password == u['password']:
         return 'bad password', 401
-    userCfg = isValidToken( u['invitation-token'] )
-    if not userCfg:
+    if not isValidToken( u['invitation-token'] ):
         return 'user invitation time expired', 401
     r = {
-        'user' : user,
-        'config' : json.loads( userCfg.decode('utf8') )
+        'user' : user
     }
     resp = make_response( r, 200, JSON_HEADER )
     resp.set_cookie(GUEST_TOKEN_COOKIE_NAME, ferne.encrypt(b'asdf').decode('utf8'), max_age=60*60) #expires in 1 hour
