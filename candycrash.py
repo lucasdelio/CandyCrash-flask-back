@@ -1,5 +1,4 @@
 from flask import Flask, request, make_response, abort
-import pymongo
 from bson import json_util
 import json
 from datetime import datetime, timedelta
@@ -10,8 +9,8 @@ import requests
 import base64
 import random
 
-SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
-#SIGNUP_INVITATION_URL = 'https://matchmusic.world/invitation/'
+#SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
+SIGNUP_INVITATION_URL = 'https://matchmusic.world/invitation/'
 GOOGLE_USER_INFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 JSON_HEADER = {'content-type':'application/json'}
 TTL_ = 24*60*60 #24 hs ttl for generated tokens
@@ -21,46 +20,12 @@ GUEST_TOKEN_COOKIE_NAME = 'sessionToken-Guest'
 app = Flask(__name__)
 CORS(app)
 
-#generate a new key file
-#key = Fernet.generate_key()
-#file = open('key.key', 'wb')
-#file.write(key) # The key is type bytes still
-#file.close()
-
 file = open('key.key', 'rb')
 key = file.read() # The key will be type bytes
 ferne = Fernet(key)
 file.close()
 
-client = pymongo.MongoClient('mongodb://localhost:27017/')
-db = client.test_database
-users_collection = db.users_collection
-#make user, email and invitation-token unique
-users_collection.create_index([('user', pymongo.ASCENDING)], unique=True)
-users_collection.create_index([('invitation-token', pymongo.ASCENDING)], unique=True)
-
-def deleteExpiredUsersTask():
-    for p in users_collection.find():
-        t = p['invitation-token']
-        if not isValidToken(t):
-            users_collection.delete_one(p)
-            
-scheduler = BackgroundScheduler()
-scheduler.add_job(func=deleteExpiredUsersTask, trigger="interval", seconds=60)
-scheduler.start()
-
-@app.route('/users')
-def personas():
-    p = users_collection.find()
-    return json_util.dumps(p), 200, JSON_HEADER
-
-''' @app.route('/user') #find a user
-def findUser( ):
-    u = users_collection.find_one( {'user': 'lucasdelio'} )
-    if u:
-        return json_util.dumps(u),200, JSON_HEADER
-    else:
-        return '',204 #204 = no content '''
+users_collection = []
 
 def getAllEvents():
     with open('events.json') as json_file:
@@ -87,12 +52,6 @@ def searchEvent(id):
 def isSessionActive(request):
     token = request.cookies.get( SPARK_TOKEN_COOKIE_NAME )
     return isValidToken(token)
-
-''' @app.route('/alive',methods=['GET'])
-def alive():
-    if not isSessionActive(request):
-        return '',401
-    return '',200 '''
 
 @app.route('/generate-invitation',methods=['POST'])
 @cross_origin(supports_credentials=True)
@@ -128,7 +87,7 @@ def signupGuest():
     if not isValidToken(token):
         return 'Invalid token',401
     try:
-        users_collection.insert_one({
+        users_collection.append({
             'user' : user,
             'email' : email,
             'password' : password,
@@ -147,7 +106,8 @@ def loginGuest():
         password = data['password']
     except: #return 400, bad request
         return '',400
-    u = users_collection.find_one( {'user': user} )
+    l = [ e for e in users_collection if e['user'] == user ]
+    u = l[0]
     if not u:
         return 'user not found', 401
     if not password == u['password']:
@@ -182,6 +142,3 @@ def loginSpark():
     resp = make_response( json, 200 , JSON_HEADER )
     resp.set_cookie(SPARK_TOKEN_COOKIE_NAME, ferne.encrypt(b'asdf').decode('utf8'), max_age=TTL_) #expires in one day
     return resp
-
-if __name__ == '__main__':
-    app.run(debug=True)
