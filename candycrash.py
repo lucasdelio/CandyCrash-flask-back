@@ -10,8 +10,8 @@ import requests
 import base64
 import random
 
-SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
-#SIGNUP_INVITATION_URL = 'https://matchmusic.world/invitation/'
+#SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
+SIGNUP_INVITATION_URL = 'https://candicrash.sparkdigital.rocks/invitation/'
 GOOGLE_USER_INFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 JSON_HEADER = {'content-type':'application/json'}
 TTL_ = 24*60*60 #24 hs ttl for generated tokens
@@ -88,23 +88,16 @@ def isSessionActive(request):
     token = request.cookies.get( SPARK_TOKEN_COOKIE_NAME )
     return isValidToken(token)
 
-''' @app.route('/alive',methods=['GET'])
-def alive():
-    if not isSessionActive(request):
-        return '',401
-    return '',200 '''
-
 @app.route('/generate-invitation',methods=['POST'])
 @cross_origin(supports_credentials=True)
 def generateInvitation2():
     if not isSessionActive(request):
         return '',401
-    try: # try to create a dict to check if the cfg is correct
+    try: #request.data is the body with the bugs configuration
         cfg = json.loads( request.data.decode('utf8')  ) 
     except:
         return 'Invalid json body',400 
-    invitationToken = ferne.encrypt( b'nothing' ).decode('utf8')
-    cfg['invitation-token'] = invitationToken
+    cfg['invitation-token'] = ferne.encrypt( request.data ).decode('utf8')
     invitationBase64 = base64.b64encode( bytes(json.dumps(cfg) , 'utf8')).decode('utf8')
     return SIGNUP_INVITATION_URL+ invitationBase64
 
@@ -132,7 +125,9 @@ def signupGuest():
             'user' : user,
             'email' : email,
             'password' : password,
-            'invitation-token': token
+            'invitation-token': token,
+            #decrit de token with the raw config and encode in base64
+            'bugs-config': base64.b64encode(ferne.decrypt(bytes(token,'utf8'))).decode('utf8')
         })
     except:  #409 http = conflict
         return 'User already in use',409
@@ -154,10 +149,7 @@ def loginGuest():
         return 'bad password', 401
     if not isValidToken( u['invitation-token'] ):
         return 'user invitation time expired', 401
-    r = {
-        'user' : user
-    }
-    resp = make_response( r, 200, JSON_HEADER )
+    resp = make_response( json_util.dumps(u), 200, JSON_HEADER )
     resp.set_cookie(GUEST_TOKEN_COOKIE_NAME, ferne.encrypt(b'asdf').decode('utf8'), max_age=60*60) #expires in 1 hour
     return resp
 
