@@ -64,8 +64,13 @@ def findUser( ):
 
 def getAllEvents():
     with open('events.json') as json_file:
-        return json.load(json_file)
-        
+        events = json.load(json_file)
+        for e in events:
+            desc = e['description']
+            mod15 = ( ord(desc[0])+ord(desc[1])+ord(desc[2]) ) % 15;
+            e['time'] = str(datetime.utcnow()+timedelta(hours= mod15*24) )
+        return events
+
 @app.route('/events') #return 15 events with rotation every 2 hours
 def allEvents():
     events = getAllEvents()
@@ -81,7 +86,6 @@ def searchEvent(id):
     if not l :
         return '',204 #204 no content
     e = l[0]
-    e['time'] = str(datetime.utcnow()+timedelta(hours= random.randrange(100)) )
     return e,200, JSON_HEADER
 
 def isSessionActive(request):
