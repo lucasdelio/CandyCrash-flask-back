@@ -35,9 +35,11 @@ file.close()
 client = pymongo.MongoClient('mongodb://localhost:27017/')
 db = client.test_database
 users_collection = db.users_collection
+admins_collection = db.admins_collection
 #make user, email and invitation-token unique
 users_collection.create_index([('user', pymongo.ASCENDING)], unique=True)
 users_collection.create_index([('invitation-token', pymongo.ASCENDING)], unique=True)
+admins_collection.create_index([('email', pymongo.ASCENDING)], unique=True)
 
 def deleteExpiredUsersTask():
     for p in users_collection.find():
@@ -178,6 +180,21 @@ def loginSpark():
     resp = make_response( json, 200 , JSON_HEADER )
     resp.set_cookie(SPARK_TOKEN_COOKIE_NAME, ferne.encrypt(b'asdf').decode('utf8'), max_age=TTL_) #expires in one day
     return resp
+
+@app.route("/admins", methods=['GET','POST','DELETE'])
+@cross_origin(supports_credentials=True)
+def admins_():
+    #if not isSessionActive(request): return '',401 #is no admin login cookie
+    email = request.args.get('email')
+    if request.method == 'POST':
+        if not email: return 'no email param',400
+        try: admins_collection.insert_one( {'email':email } )
+        except: pass
+    if request.method == 'DELETE':
+        if not email: return 'no email param',400
+        admins_collection.delete_one( {'email':email } )
+    admins = json_util.dumps( admins_collection.find() )
+    return admins, 200, JSON_HEADER
 
 if __name__ == '__main__':
     app.run(debug=True)
