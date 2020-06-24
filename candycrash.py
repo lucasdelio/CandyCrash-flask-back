@@ -10,8 +10,8 @@ import requests
 import base64
 import random
 
-#SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
-SIGNUP_INVITATION_URL = 'https://candicrash.sparkdigital.rocks/invitation/'
+SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
+#SIGNUP_INVITATION_URL = 'https://candicrash.sparkdigital.rocks/invitation/'
 GOOGLE_USER_INFO_URL = 'https://openidconnect.googleapis.com/v1/userinfo'
 JSON_HEADER = {'content-type':'application/json'}
 TTL_ = 24*60*60 #24 hs ttl for generated tokens
@@ -41,6 +41,9 @@ users_collection.create_index([('user', pymongo.ASCENDING)], unique=True)
 users_collection.create_index([('invitation-token', pymongo.ASCENDING)], unique=True)
 admins_collection.create_index([('email', pymongo.ASCENDING)], unique=True)
 
+try: admins_collection.insert_one( {'email':'ldelio@sparkdigital.com' } )
+except: pass
+        
 def deleteExpiredUsersTask():
     for p in users_collection.find():
         t = p['invitation-token']
@@ -55,14 +58,6 @@ scheduler.start()
 def personas():
     p = users_collection.find()
     return json_util.dumps(p), 200, JSON_HEADER
-
-''' @app.route('/user') #find a user
-def findUser( ):
-    u = users_collection.find_one( {'user': 'lucasdelio'} )
-    if u:
-        return json_util.dumps(u),200, JSON_HEADER
-    else:
-        return '',204 #204 = no content '''
 
 def getAllEvents():
     with open('events.json') as json_file:
@@ -175,8 +170,9 @@ def loginSpark():
         return 'missing accessToken',401
     headers = {"Authorization": 'Bearer '+accessToken}
     json = requests.post( GOOGLE_USER_INFO_URL, headers=headers).json()
-    if not json.get('email'):
-        return '',401
+    email = json.get('email')
+    if not email or not admins_collection.find_one( {'email': email} ):
+        return '',401 #if there is no email, or the email is not admin
     resp = make_response( json, 200 , JSON_HEADER )
     resp.set_cookie(SPARK_TOKEN_COOKIE_NAME, ferne.encrypt(b'asdf').decode('utf8'), max_age=TTL_) #expires in one day
     return resp
@@ -184,7 +180,7 @@ def loginSpark():
 @app.route("/admins", methods=['GET','POST','DELETE'])
 @cross_origin(supports_credentials=True)
 def admins_():
-    #if not isSessionActive(request): return '',401 #is no admin login cookie
+    if not isSessionActive(request): return '',401 #if no admin login cookie
     email = request.args.get('email')
     if request.method == 'POST':
         if not email: return 'no email param',400
