@@ -30,6 +30,10 @@ users_collection = []
 def getAllEvents():
     with open('events.json') as json_file:
         return json.load(json_file)
+    
+@app.route('/health', methods=['GET'])
+def health_():
+    return '',200
         
 @app.route('/events') #return 15 events with rotation every 2 hours
 def allEvents():
