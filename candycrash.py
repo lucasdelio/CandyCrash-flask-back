@@ -8,6 +8,7 @@ from apscheduler.schedulers.background import BackgroundScheduler
 import requests
 import base64
 import random
+import os
 
 #SIGNUP_INVITATION_URL = 'http://localhost:3000/invitation/'
 SIGNUP_INVITATION_URL = 'https://matchmusic.world/invitation/'
@@ -20,10 +21,8 @@ GUEST_TOKEN_COOKIE_NAME = 'sessionToken-Guest'
 app = Flask(__name__)
 CORS(app)
 
-file = open('key.key', 'rb')
-key = file.read() # The key will be type bytes
-ferne = Fernet(key)
-file.close()
+key = os.environ['KEY'] #read the key from environment variable
+ferne = Fernet(key)     #initialize fernet with the key
 
 users_collection = []
 

@@ -4,7 +4,7 @@ RUN pip install -r requirements.txt
 
 # USE THIS COMMANDS TO RUN:
 # docker build -t myimage ./
-# docker run -p 80:80 -e MODULE_NAME="candycrash" -e WORKERS_PER_CORE="1" myimage
+# docker run -p 80:80 -e MODULE_NAME="candycrash" -e WORKERS_PER_CORE="1" -e KEY=$KEY myimage
 
 # OR
-# docker build -t myimage ./ && docker run -p 80:80 -e MODULE_NAME="candycrash" -e WORKERS_PER_CORE="1" myimage
+# docker build -t myimage ./ && docker run -p 80:80 -e MODULE_NAME="candycrash" -e WORKERS_PER_CORE="1" -e KEY=$KEY myimage
