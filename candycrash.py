@@ -34,7 +34,7 @@ def getAllEvents():
 def health_():
     return '',200
         
-@app.route('/events') #return 15 events with rotation every 2 hours
+@app.route('/api/events')  #return 15 events with rotation every 2 hours
 def allEvents():
     events = getAllEvents()
     hours = datetime.utcnow().strftime("%H")
@@ -42,7 +42,7 @@ def allEvents():
     subselectedEvents = events[ shift :shift+15]
     return json.dumps(subselectedEvents),200, JSON_HEADER
     
-@app.route('/event/<string:id>')
+@app.route('/api/event/<string:id>')
 def searchEvent(id):
     events = getAllEvents()
     l = [ e for e in events if e['id'] == id ]
@@ -56,7 +56,7 @@ def isSessionActive(request):
     token = request.cookies.get( SPARK_TOKEN_COOKIE_NAME )
     return isValidToken(token)
 
-@app.route('/generate-invitation',methods=['POST'])
+@app.route('/api/generate-invitation',methods=['POST'])
 @cross_origin(supports_credentials=True)
 def generateInvitation2():
     if not isSessionActive(request):
@@ -77,7 +77,7 @@ def isValidToken(token):
         return False
     return dec
 
-@app.route('/signup-guest',methods=['POST'])
+@app.route('/api/signup-guest',methods=['POST'])
 def signupGuest():
     try:
         data = request.get_json() or request.form
@@ -100,7 +100,7 @@ def signupGuest():
         return 'User already in use',409
     return '',201
 
-@app.route("/login-guest", methods=['POST'])
+@app.route("/api/login-guest", methods=['POST'])
 @cross_origin(supports_credentials=True)
 def loginGuest():
     try:
@@ -124,14 +124,14 @@ def loginGuest():
     resp.set_cookie(GUEST_TOKEN_COOKIE_NAME, ferne.encrypt(b'asdf').decode('utf8'), max_age=60*60) #expires in 1 hour
     return resp
 
-@app.route("/logout-guest", methods=['POST'])
+@app.route("/api/logout-guest", methods=['POST'])
 @cross_origin(supports_credentials=True)
 def logoutGuest():
     resp = make_response( '', 200 )
     resp.set_cookie(GUEST_TOKEN_COOKIE_NAME, expires=0)
     return resp
 
-@app.route("/login-spark", methods=['POST'])
+@app.route("/api/login-spark", methods=['POST'])
 @cross_origin(supports_credentials=True)
 def loginSpark():
     data = request.get_json() or request.form
